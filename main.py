@@ -35,9 +35,24 @@ def mark_detected_face(camera_view, x_cord, y_cord, width_of_object, height_of_o
         return False
 
 
+def encode_face_from_image(image_path):
+    """
+    Loads an image to create face encoding.
+
+    Args:
+        image_path: Path to the image
+
+    Returns:
+        Face encoding
+    """
+    image_1 = face_recognition.load_image_file(image_path)
+    image_1 = cv2.cvtColor(image_1, cv2.COLOR_BGR2RGB)
+    return face_recognition.face_encodings(image_1)[0]
+
+
 def compare_faces_from_images(image_path_1, image_path_2):
     """
-    Loads two images from file to create face encodings and then make comparison.
+    Loads two images from files to create face encodings and then makes comparison.
 
     Args:
         image_path_1: Path to the first image.
@@ -46,12 +61,8 @@ def compare_faces_from_images(image_path_1, image_path_2):
     Returns:
         True when faces are similar, False in opposite situation.
     """
-    image_1 = face_recognition.load_image_file(image_path_1)
-    image_1 = cv2.cvtColor(image_1, cv2.COLOR_BGR2RGB)
-    image_1_face_encodings = face_recognition.face_encodings(image_1)[0]
-    image_2 = face_recognition.load_image_file(image_path_2)
-    image_2 = cv2.cvtColor(image_2, cv2.COLOR_BGR2RGB)
-    image_2_face_encodings = face_recognition.face_encodings(image_2)[0]
+    image_1_face_encodings = encode_face_from_image(image_path_1)
+    image_2_face_encodings = encode_face_from_image(image_path_2)
 
     return face_recognition.compare_faces([image_1_face_encodings], image_2_face_encodings)
 
