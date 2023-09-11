@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import messagebox
 import face_recognition
 import os
+import pickle
 
 face_classifier = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -35,6 +36,31 @@ def mark_detected_face(camera_view, x_cord, y_cord, width_of_object, height_of_o
         return False
 
 
+def serialize_face_encoding(name, face_encoding):
+    """
+    Saves face_encoding in binary_stream
+
+    Args:
+        name: name of face encoding, some sort of ID
+        face_encoding: encoded face from encode_face_from_image function
+
+    Returns:
+        None
+    """
+
+    if os.path.isfile('faces_bin'):
+        face_encodings_bin_file = open('faces_bin', 'rb')
+        face_encodings = pickle.load(face_encodings_bin_file)
+        face_encodings[name] = face_encoding
+        face_encodings_bin_file.close()
+    else:
+        face_encodings = {name: face_encoding}
+
+    faces_bin_file = open('faces_bin', 'wb')
+    pickle.dump(face_encodings, faces_bin_file)
+    faces_bin_file.close()
+
+
 def encode_face_from_image(image_path):
     """
     Loads an image to create face encoding.
@@ -45,36 +71,38 @@ def encode_face_from_image(image_path):
     Returns:
         Face encoding
     """
-    image_1 = face_recognition.load_image_file(image_path)
-    image_1 = cv2.cvtColor(image_1, cv2.COLOR_BGR2RGB)
-    return face_recognition.face_encodings(image_1)[0]
+    image = face_recognition.load_image_file(image_path)
+
+    try:
+        face_encoding = face_recognition.face_encodings(image)[0]
+    except IndexError:
+        return None
+
+    return face_encoding
 
 
-def compare_faces_from_images(image_path_1, image_path_2):
+def compare_face_encodings(face_encoding_1, face_encoding_2):
     """
-    Loads two images from files to create face encodings and then makes comparison.
+    Looks for the same face in binary database of face encodings
 
     Args:
-        image_path_1: Path to the first image.
-        image_path_2: Path to the second image.
+        face_encoding_1: First face encoding
+        face_encoding_2: Second face encoding
 
     Returns:
-        True when faces are similar, False in opposite situation.
+        Face encoding ID when faces are similar, False in opposite situation.
     """
-    image_1_face_encodings = encode_face_from_image(image_path_1)
-    image_2_face_encodings = encode_face_from_image(image_path_2)
-
-    return face_recognition.compare_faces([image_1_face_encodings], image_2_face_encodings)
+    face_compare_result = face_recognition.compare_faces([face_encoding_2], face_encoding_1, tolerance=0.6)
+    return face_compare_result[0]
 
 
-def show_comparison_window(window_title, info_text, similar_face_path):
+def show_comparison_window(window_title, info_text):
     """
     Show a comparison window to the user with information about successful comparison.
 
     Args:
         window_title: The title of the window.
         info_text: The text to be displayed in the input box.
-        similar_face_path: The path to compared face that is similar.
 
     Returns:
         None
@@ -85,12 +113,9 @@ def show_comparison_window(window_title, info_text, similar_face_path):
     comparison_window_label = tk.Label(comparison_window, text=info_text)
     face_image = tk.PhotoImage(file='faces\\temp.png')
     face_image_label = tk.Label(comparison_window, image=face_image)
-    similar_face_image = tk.PhotoImage(file=similar_face_path)
-    similar_face_image_label = tk.Label(comparison_window, image=similar_face_image)
 
     # Place the widgets on the screen
     face_image_label.pack()
-    similar_face_image_label.pack()
     comparison_window_label.pack()
 
     # Start the mainloop
@@ -165,28 +190,40 @@ def main():
             if not mark_detected_face(img, x, y, w, h):
                 break
 
-            faces_paths = ['faces\\' + path for path in os.listdir('faces')]
             is_face_similar = False
+            face_encodings_database = {}
 
-            for face_path in faces_paths:
-                if face_path != 'faces\\temp.png':
-                    try:
-                        if compare_faces_from_images(face_path, 'faces\\temp.png'):
-                            path_segments = face_path.split('\\')
-                            path_segments = path_segments[1].split('_')
-                            is_face_similar = True
-                            show_comparison_window('FaceComparison', "These images are similar. "
-                                                                     "I know you! You're " +
-                                                   path_segments[0], face_path)
-                    except IndexError:
-                        print("There's no face on image:", face_path)
+            if os.path.isfile('faces_bin'):
+                face_encodings_database_file = open('faces_bin', 'rb')
+                face_encodings_database = pickle.load(face_encodings_database_file)
+                face_encodings_database_file.close()
+
+            temp_face_encoding = encode_face_from_image('faces\\temp.png')
+
+            if temp_face_encoding is None:
+                print("There's no face on image:", 'faces\\temp.png')
+                break
+
+            for face_encoding_id, face_encoding in face_encodings_database.items():
+                try:
+                    comparison_result = compare_face_encodings(temp_face_encoding, face_encoding)
+
+                    if comparison_result:
+                        id_segments = face_encoding_id.split('_')
+                        is_face_similar = True
+                        show_comparison_window('FaceComparison', "This face is familiar for me. "
+                                                                 "I know you! You're " +
+                                               id_segments[0])
+                except IndexError:
+                    print("There's no face on image:", face_encoding_id)
 
             if not is_face_similar:
                 person_name = show_input_box('FaceDetection', "I don't know you.\nWhat's your name?\n"
                                                               "(to skip just leave blank field)")
                 if person_name != '':
-                    cv2.imwrite('faces\\' + person_name + '_' + datetime.datetime.now().strftime("%B%d%Y%H%M%S") +
-                                '.png', img[y - 100:y + h + 100, x - 100:x + w + 100])
+                    face_encoding = encode_face_from_image('faces\\temp.png')
+                    full_face_id = person_name + '_' + datetime.datetime.now().strftime("%B%d%Y%H%M%S")
+                    serialize_face_encoding(full_face_id, face_encoding)
 
         # shows camera image
         cv2.imshow('FaceDetector', img)
