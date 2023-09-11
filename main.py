@@ -11,32 +11,33 @@ face_classifier = cv2.CascadeClassifier(
 )
 
 
-def mark_detected_face(camera_view, x_cord, y_cord, width_of_object, height_of_object):
+def mark_and_save_detected_face(camera_view, x_cord, y_cord, width_of_object, height_of_object):
     """
-    Marks detected face by blue frame and saves it temporarily as PNG image.
+    Marks detected face by blue frame and saves it temporarily as PNG image
 
     Args:
-        camera_view: The image to mark the face on.
-        x_cord: The x-coordinate of the top-left corner of the face.
-        y_cord: The y-coordinate of the top-left corner of the face.
-        width_of_object: The width of the face.
-        height_of_object: The height of the face.
+        camera_view: The image to mark the face on
+        x_cord: The x-coordinate of the top-left corner of the face
+        y_cord: The y-coordinate of the top-left corner of the face
+        width_of_object: The width of the face
+        height_of_object: The height of the face
     Returns:
         None
     """
+
+    # mark face with blue frame
     cv2.rectangle(camera_view, (x_cord - 100, y_cord - 100), (x_cord + width_of_object + 100,
                                                               y_cord + height_of_object + 100), (255, 0, 0), 2)
     try:
-        cv2.imwrite('faces\\' + 'temp.png', camera_view[y_cord - 100:y_cord + width_of_object + 100,
+        # save temporarily face
+        cv2.imwrite('temp.png', camera_view[y_cord - 100:y_cord + width_of_object + 100,
                                                         x_cord - 100:x_cord + height_of_object + 100])
         return True
     except cv2.error:
-        show_info_box('Caution!', 'To ensure a correct detection, please keep your face in the centre of view. '
-                                  'Please keep your face as straight as possible.')
         return False
 
 
-def serialize_face_encoding(name, face_encoding):
+def add_face_encoding_to_database(name, face_encoding):
     """
     Saves face_encoding in binary_stream
 
@@ -49,21 +50,19 @@ def serialize_face_encoding(name, face_encoding):
     """
 
     if os.path.isfile('faces_bin'):
-        face_encodings_bin_file = open('faces_bin', 'rb')
-        face_encodings = pickle.load(face_encodings_bin_file)
-        face_encodings[name] = face_encoding
-        face_encodings_bin_file.close()
+        with open('faces_bin', 'rb') as face_encodings_bin_file:
+            face_encodings = pickle.load(face_encodings_bin_file)
+            face_encodings[name] = face_encoding
     else:
         face_encodings = {name: face_encoding}
 
-    faces_bin_file = open('faces_bin', 'wb')
-    pickle.dump(face_encodings, faces_bin_file)
-    faces_bin_file.close()
+    with open('faces_bin', 'wb') as faces_bin_file:
+        pickle.dump(face_encodings, faces_bin_file)
 
 
 def encode_face_from_image(image_path):
     """
-    Loads an image to create face encoding.
+    Loads an image to create face encoding
 
     Args:
         image_path: Path to the image
@@ -83,14 +82,14 @@ def encode_face_from_image(image_path):
 
 def compare_face_encodings(face_encoding_1, face_encoding_2):
     """
-    Looks for the same face in binary database of face encodings
+    Makes comparison between two face encodings
 
     Args:
         face_encoding_1: First face encoding
         face_encoding_2: Second face encoding
 
     Returns:
-        Face encoding ID when faces are similar, False in opposite situation.
+        When face encodings are similar - True, False in opposite situation
     """
     face_compare_result = face_recognition.compare_faces([face_encoding_2], face_encoding_1, tolerance=0.6)
     return face_compare_result[0]
@@ -98,11 +97,11 @@ def compare_face_encodings(face_encoding_1, face_encoding_2):
 
 def show_comparison_window(window_title, info_text):
     """
-    Show a comparison window to the user with information about successful comparison.
+    Shows a comparison window with information about successful comparison
 
     Args:
-        window_title: The title of the window.
-        info_text: The text to be displayed in the input box.
+        window_title: The title of the window
+        info_text: The text to be displayed in the input box
 
     Returns:
         None
@@ -111,7 +110,7 @@ def show_comparison_window(window_title, info_text):
     comparison_window = tk.Tk()
     comparison_window.title(window_title)
     comparison_window_label = tk.Label(comparison_window, text=info_text)
-    face_image = tk.PhotoImage(file='faces\\temp.png')
+    face_image = tk.PhotoImage(file='temp.png')
     face_image_label = tk.Label(comparison_window, image=face_image)
 
     # Place the widgets on the screen
@@ -125,7 +124,7 @@ def show_comparison_window(window_title, info_text):
 
 def show_input_box(window_title, label_text):
     """
-    Show an input box to the user and return the entered text.
+    Shows an input box asking for name of user.
 
     Args:
         window_title: The title of the window.
@@ -141,7 +140,7 @@ def show_input_box(window_title, label_text):
     input_label = tk.Label(input_box, text=label_text)
     input_entry = tk.Entry(input_box, textvariable=input_entry_text)
     submit_button = tk.Button(input_box, text="Submit", command=input_box.destroy)
-    face_image = tk.PhotoImage(file='faces\\temp.png')
+    face_image = tk.PhotoImage(file='temp.png')
     label_image = tk.Label(input_box, image=face_image)
 
     # Place the widgets on the screen
@@ -159,7 +158,7 @@ def show_input_box(window_title, label_text):
 
 def show_info_box(window_title, info_text):
     """
-    Show a short information in Tkinter window.
+    Shows short information in a message box.
 
     Args:
         window_title: The title of the window.
@@ -168,8 +167,8 @@ def show_info_box(window_title, info_text):
     Returns:
         None
     """
-    # Create the info box
-    info_box = messagebox.showinfo(window_title, info_text)
+    # Create and display the info box
+    messagebox.showinfo(window_title, info_text)
 
 
 def main():
@@ -187,7 +186,9 @@ def main():
         )
 
         for (x, y, w, h) in faces:
-            if not mark_detected_face(img, x, y, w, h):
+            if not mark_and_save_detected_face(img, x, y, w, h):
+                show_info_box('Caution!', 'To ensure a correct detection, please keep your face in the centre of view. '
+                                          'Please keep your face as straight as possible.')
                 break
 
             is_face_similar = False
@@ -198,10 +199,10 @@ def main():
                 face_encodings_database = pickle.load(face_encodings_database_file)
                 face_encodings_database_file.close()
 
-            temp_face_encoding = encode_face_from_image('faces\\temp.png')
+            temp_face_encoding = encode_face_from_image('temp.png')
 
             if temp_face_encoding is None:
-                print("There's no face on image:", 'faces\\temp.png')
+                print("There's no face on image:", 'temp.png')
                 break
 
             for face_encoding_id, face_encoding in face_encodings_database.items():
@@ -221,9 +222,9 @@ def main():
                 person_name = show_input_box('FaceDetection', "I don't know you.\nWhat's your name?\n"
                                                               "(to skip just leave blank field)")
                 if person_name != '':
-                    face_encoding = encode_face_from_image('faces\\temp.png')
+                    face_encoding = encode_face_from_image('temp.png')
                     full_face_id = person_name + '_' + datetime.datetime.now().strftime("%B%d%Y%H%M%S")
-                    serialize_face_encoding(full_face_id, face_encoding)
+                    add_face_encoding_to_database(full_face_id, face_encoding)
 
         # shows camera image
         cv2.imshow('FaceDetector', img)
