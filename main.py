@@ -1,6 +1,7 @@
 import cv2
 import datetime
 import tkinter as tk
+from tkinter import messagebox
 import face_recognition
 import os
 
@@ -24,8 +25,14 @@ def mark_detected_face(camera_view, x_cord, y_cord, width_of_object, height_of_o
     """
     cv2.rectangle(camera_view, (x_cord - 100, y_cord - 100), (x_cord + width_of_object + 100,
                                                               y_cord + height_of_object + 100), (255, 0, 0), 2)
-    cv2.imwrite('faces\\' + 'temp.png', camera_view[y_cord - 100:y_cord + width_of_object + 100,
-                                                    x_cord - 100:x_cord + height_of_object + 100])
+    try:
+        cv2.imwrite('faces\\' + 'temp.png', camera_view[y_cord - 100:y_cord + width_of_object + 100,
+                                                        x_cord - 100:x_cord + height_of_object + 100])
+        return True
+    except cv2.error:
+        show_info_box('Caution!', 'To ensure a correct detection, please keep your face in the centre of view. '
+                                  'Please keep your face as straight as possible.')
+        return False
 
 
 def compare_faces_from_images(image_path_1, image_path_2):
@@ -80,13 +87,13 @@ def show_comparison_window(window_title, info_text, similar_face_path):
     comparison_window.mainloop()
 
 
-def show_input_box(window_title, info_text):
+def show_input_box(window_title, label_text):
     """
     Show an input box to the user and return the entered text.
 
     Args:
         window_title: The title of the window.
-        info_text: The text to be displayed in the input box.
+        label_text: The text to be displayed in the input box.
 
     Returns:
         The text entered by the user.
@@ -95,7 +102,7 @@ def show_input_box(window_title, info_text):
     input_box = tk.Tk()
     input_entry_text = tk.StringVar()
     input_box.title(window_title)
-    input_label = tk.Label(input_box, text=info_text)
+    input_label = tk.Label(input_box, text=label_text)
     input_entry = tk.Entry(input_box, textvariable=input_entry_text)
     submit_button = tk.Button(input_box, text="Submit", command=input_box.destroy)
     face_image = tk.PhotoImage(file='faces\\temp.png')
@@ -114,6 +121,21 @@ def show_input_box(window_title, info_text):
     return input_entry_text.get()
 
 
+def show_info_box(window_title, info_text):
+    """
+    Show a short information in Tkinter window.
+
+    Args:
+        window_title: The title of the window.
+        info_text: The text to be displayed in the input box.
+
+    Returns:
+        None
+    """
+    # Create the info box
+    info_box = messagebox.showinfo(window_title, info_text)
+
+
 def main():
     # initiate video capture by camera with index 0
     cam = cv2.VideoCapture(0)
@@ -129,7 +151,9 @@ def main():
         )
 
         for (x, y, w, h) in faces:
-            mark_detected_face(img, x, y, w, h)
+            if not mark_detected_face(img, x, y, w, h):
+                break
+
             faces_paths = ['faces\\' + path for path in os.listdir('faces')]
             is_face_similar = False
 
