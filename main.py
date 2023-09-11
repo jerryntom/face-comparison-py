@@ -31,7 +31,7 @@ def mark_and_save_detected_face(camera_view, x_cord, y_cord, width_of_object, he
     try:
         # save temporarily face
         cv2.imwrite('temp.png', camera_view[y_cord - 100:y_cord + width_of_object + 100,
-                                                        x_cord - 100:x_cord + height_of_object + 100])
+                                            x_cord - 100:x_cord + height_of_object + 100])
         return True
     except cv2.error:
         return False
